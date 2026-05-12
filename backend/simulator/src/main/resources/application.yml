@@ -1,0 +1,18 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: traffic-simulator
+  web:
+    cors:
+      allowed-origins: "http://localhost:5173"
+
+websocket:
+  broadcast-interval-ms: 100
+  metrics-interval-ms: 500
+
+logging:
+  level:
+    com.trafico.simulator: DEBUG
+    root: INFO

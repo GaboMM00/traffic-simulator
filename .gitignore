@@ -1,0 +1,20 @@
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backend
+backend/simulator/target/
+backend/simulator/.mvn/wrapper/maven-wrapper.jar
+backend/simulator/HELP.md
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/*.local
