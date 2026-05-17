@@ -43,6 +43,14 @@ export interface RunResult {
   durationMs: number
   vehicles: VehicleResult[]
   summary: SimulationSummary
+  /** Estadísticas de semáforos inteligentes; null si smartTrafficLights estaba desactivado. */
+  smartLightStats: SmartLightStats | null
+}
+
+export interface SmartLightStats {
+  totalGreenExtensions: number
+  totalGreenReductions: number
+  totalRedReductions: number
 }
 
 export interface VehicleResult {

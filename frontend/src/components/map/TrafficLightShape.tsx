@@ -38,8 +38,8 @@ export default function TrafficLightShape({ trafficLight, cellSize }: TrafficLig
         align="center"
         verticalAlign="middle"
       />
-      {/* Ícono ⚡ si está extendido */}
-      {trafficLight.isExtended && (
+      {/* Ícono ⚡ si el semáforo inteligente está ajustando activamente esta fase */}
+      {(trafficLight.isExtended || trafficLight.isReduced) && (
         <Text x={radius} y={-radius * 1.5} text="⚡" fontSize={radius * 1.2} />
       )}
     </Group>

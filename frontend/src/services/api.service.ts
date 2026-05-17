@@ -37,8 +37,22 @@ async function get<T>(url: string): Promise<T> {
 }
 
 export const apiService = {
-  startSimulation: (config: SimulationConfig) =>
-    post<SimulationStartResponse>(API_ENDPOINTS.START, config),
+  startSimulation: (config: SimulationConfig) => {
+    // En modo MANUAL enviamos solo los pares origen-destino: el backend deriva vehicleCount
+    // de la lista. En modo AUTO no enviamos manualVehicles para que el backend genere aleatorios.
+    const payload = config.vehicleMode === 'MANUAL'
+      ? {
+          ...config,
+          manualVehicles: config.manualVehicles.map((v) => ({
+            originCol: v.originCol,
+            originRow: v.originRow,
+            destCol:   v.destCol,
+            destRow:   v.destRow,
+          })),
+        }
+      : { ...config, manualVehicles: undefined }
+    return post<SimulationStartResponse>(API_ENDPOINTS.START, payload)
+  },
 
   pauseSimulation: () =>
     postVoid(API_ENDPOINTS.PAUSE),

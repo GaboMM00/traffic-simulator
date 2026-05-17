@@ -91,22 +91,30 @@ export default function SimulationSection() {
         {/* Preview en tiempo real del ciclo */}
         <div className="mt-3 p-2 rounded-lg bg-surface-hover border border-border text-xs text-center text-text-secondary">
           {lightsDisabled
-            ? 'Los semáforos inteligentes ajustan los tiempos automáticamente'
+            ? 'Los semáforos ajustan su duración según el tráfico'
             : `Ciclo total: ${totalS}s — Verde ${greenS}s → Amarillo ${yellowS}s → Rojo ${redS}s`}
         </div>
       </div>
 
       {/* ── Semáforos inteligentes ────────────────────────────── */}
-      <div className="mt-4 flex items-center justify-between">
-        <span className="text-sm text-text-secondary">Semáforos inteligentes</span>
-        <button
-          onClick={() => setConfig({ smartTrafficLights: !smartTrafficLights })}
-          className={`w-10 h-5 rounded-full transition-colors ${
-            smartTrafficLights ? 'bg-accent' : 'bg-border'
-          }`}
-          aria-checked={smartTrafficLights}
-          role="switch"
-        />
+      <div className="mt-4">
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-text-secondary">Semáforos inteligentes</span>
+          <button
+            onClick={() => setConfig({ smartTrafficLights: !smartTrafficLights })}
+            className={`w-10 h-5 rounded-full transition-colors ${
+              smartTrafficLights ? 'bg-accent' : 'bg-border'
+            }`}
+            aria-checked={smartTrafficLights}
+            role="switch"
+            aria-label="Activar semáforos inteligentes"
+          />
+        </div>
+        {smartTrafficLights && (
+          <p className="mt-2 text-[11px] text-text-muted leading-tight">
+            ⚡ Extiende verde si la cola supera 5 vehículos · acorta verde si la cola se vacía · acorta rojo si la cola supera 8 vehículos
+          </p>
+        )}
       </div>
     </Card>
   )

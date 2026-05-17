@@ -3,6 +3,7 @@
 import { useRef } from 'react'
 import { motion } from 'framer-motion'
 import MetricCards from './MetricCards'
+import SmartLightStatsSection from './SmartLightStatsSection'
 import TravelTimeHistogram from './charts/TravelTimeHistogram'
 import CompletionTimeline from './charts/CompletionTimeline'
 import CongestionHeatmap from './charts/CongestionHeatmap'
@@ -72,6 +73,10 @@ export default function ResultsPage() {
         </motion.div>
 
         <MetricCards results={results} />
+
+        <div className="mt-6">
+          <SmartLightStatsSection results={results} />
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
           <div ref={histogramRef}>

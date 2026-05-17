@@ -10,4 +10,6 @@ export interface TrafficLightDTO {
   remainingMs: number
   queueSize: number
   isExtended: boolean
+  /** True si el semáforo redujo activamente la fase actual (verde acortado o rojo acortado). */
+  isReduced: boolean
 }

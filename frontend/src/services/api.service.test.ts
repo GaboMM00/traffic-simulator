@@ -13,6 +13,8 @@ const sampleConfig: SimulationConfig = {
   destinationMode: 'RANDOM',
   simulationSpeed: 1.0,
   smartTrafficLights: false,
+  vehicleMode: 'AUTO',
+  manualVehicles: [],
 }
 
 function mockFetch(payload: unknown, ok = true, status = 200) {
@@ -34,7 +36,7 @@ describe('apiService', () => {
     vi.restoreAllMocks()
   })
 
-  it('startSimulation hace POST a /api/simulation/start con el config como body', async () => {
+  it('startSimulation hace POST a /api/simulation/start con el config como body (modo AUTO sin manualVehicles)', async () => {
     const fn = mockFetch({ simulationId: 'SIM-1', status: 'LOADING', gridSize: 12, vehicleCount: 50, trafficLightCount: 16, estimatedLoadTimeMs: 800 })
     const res = await apiService.startSimulation(sampleConfig)
 
@@ -43,8 +45,31 @@ describe('apiService', () => {
     expect(url).toBe('/api/simulation/start')
     expect(init?.method).toBe('POST')
     expect(init?.headers).toMatchObject({ 'Content-Type': 'application/json' })
-    expect(JSON.parse(init?.body as string)).toEqual(sampleConfig)
+    const body = JSON.parse(init?.body as string)
+    // En modo AUTO no se debe enviar manualVehicles al backend
+    expect(body.manualVehicles).toBeUndefined()
+    expect(body.vehicleMode).toBe('AUTO')
+    expect(body.gridSize).toBe(12)
     expect(res.simulationId).toBe('SIM-1')
+  })
+
+  it('startSimulation envía manualVehicles cuando vehicleMode es MANUAL', async () => {
+    const fn = mockFetch({ simulationId: 'SIM-M', status: 'LOADING', gridSize: 12, vehicleCount: 2, trafficLightCount: 16, estimatedLoadTimeMs: 800 })
+    const manualConfig: SimulationConfig = {
+      ...sampleConfig,
+      vehicleMode: 'MANUAL',
+      manualVehicles: [
+        { id: 'V-001', originCol: 0, originRow: 5, destCol: 8, destRow: 8 },
+        { id: 'V-002', originCol: 11, originRow: 0, destCol: 3, destRow: 7 },
+      ],
+    }
+    await apiService.startSimulation(manualConfig)
+    const [, init] = fn.mock.calls[0]
+    const body = JSON.parse(init?.body as string)
+    expect(body.manualVehicles).toEqual([
+      { originCol: 0, originRow: 5, destCol: 8, destRow: 8 },
+      { originCol: 11, originRow: 0, destCol: 3, destRow: 7 },
+    ])
   })
 
   it('pauseSimulation hace POST a /api/simulation/pause', async () => {

@@ -17,6 +17,8 @@ const defaultConfig: SimulationConfig = {
   destinationMode: 'RANDOM',
   simulationSpeed: SIMULATION_DEFAULTS.SIMULATION_SPEED,
   smartTrafficLights: SIMULATION_DEFAULTS.SMART_TRAFFIC_LIGHTS,
+  vehicleMode: 'AUTO',
+  manualVehicles: [],
 }
 
 interface ConfigStore {

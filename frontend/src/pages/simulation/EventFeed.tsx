@@ -10,6 +10,7 @@ const EVENT_ICONS: Record<SimulationEventType, string> = {
   SIMULATION_FINISHED: '✅',
   DEADLOCK_DETECTED: '⚠️',
   TRAFFIC_LIGHT_EXTENDED: '⚡',
+  TRAFFIC_LIGHT_REDUCED: '⚡',
   ROUTE_CALCULATION_STARTED: '🔄',
   ROUTE_CALCULATION_FINISHED: '📊',
 }
@@ -21,6 +22,7 @@ const EVENT_LABELS: Record<SimulationEventType, string> = {
   SIMULATION_FINISHED: 'Simulación terminada',
   DEADLOCK_DETECTED: 'Deadlock detectado',
   TRAFFIC_LIGHT_EXTENDED: 'Semáforo extendido',
+  TRAFFIC_LIGHT_REDUCED: 'Semáforo reducido',
   ROUTE_CALCULATION_STARTED: 'Calculando rutas',
   ROUTE_CALCULATION_FINISHED: 'Rutas calculadas',
 }
@@ -30,6 +32,34 @@ function EventDetail({ event }: { event: SimulationEventDTO }) {
     const mode = event.payload['mode'] as string | undefined
     const label = mode === 'SEQUENTIAL' ? 'SECUENCIAL' : mode === 'PARALLEL' ? 'PARALELO' : mode ?? ''
     return <span className="text-text-muted ml-1">— modo {label}</span>
+  }
+
+  if (event.type === 'TRAFFIC_LIGHT_EXTENDED') {
+    const id    = event.payload['intersectionId'] as string | undefined
+    const queue = event.payload['queueSize']      as number | undefined
+    return (
+      <span className="text-text-muted ml-1">
+        — {id} extendió verde 2s (cola: {queue ?? '?'} vehículos)
+      </span>
+    )
+  }
+
+  if (event.type === 'TRAFFIC_LIGHT_REDUCED') {
+    const id    = event.payload['intersectionId'] as string | undefined
+    const phase = event.payload['phase']          as string | undefined
+    const queue = event.payload['queueSize']      as number | undefined
+    if (phase === 'GREEN') {
+      return (
+        <span className="text-text-muted ml-1">
+          — {id} acortó verde (cola vaciada)
+        </span>
+      )
+    }
+    return (
+      <span className="text-text-muted ml-1">
+        — {id} redujo rojo 1s (cola crítica: {queue ?? '?'} vehículos)
+      </span>
+    )
   }
 
   if (event.type === 'ROUTE_CALCULATION_FINISHED') {
