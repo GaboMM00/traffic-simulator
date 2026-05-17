@@ -16,6 +16,18 @@ async function post<T>(url: string, body?: unknown): Promise<T> {
   return response.json()
 }
 
+// Para endpoints que retornan cuerpo vacío o cuyo valor de retorno no importa.
+// Usar en lugar de post<void> para evitar SyntaxError al parsear body vacío.
+async function postVoid(url: string): Promise<void> {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  })
+  if (!response.ok) {
+    throw new Error(`Error HTTP ${response.status}: ${url}`)
+  }
+}
+
 async function get<T>(url: string): Promise<T> {
   const response = await fetch(url)
   if (!response.ok) {
@@ -29,10 +41,10 @@ export const apiService = {
     post<SimulationStartResponse>(API_ENDPOINTS.START, config),
 
   pauseSimulation: () =>
-    post<void>(API_ENDPOINTS.PAUSE),
+    postVoid(API_ENDPOINTS.PAUSE),
 
   resumeSimulation: () =>
-    post<void>(API_ENDPOINTS.RESUME),
+    postVoid(API_ENDPOINTS.RESUME),
 
   stopSimulation: () =>
     post<SimulationStopResponse>(API_ENDPOINTS.STOP),

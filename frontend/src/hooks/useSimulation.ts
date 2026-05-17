@@ -27,12 +27,20 @@ export function useSimulation() {
   }
 
   async function pauseSimulation() {
-    await apiService.pauseSimulation()
+    try {
+      await apiService.pauseSimulation()
+    } catch (err) {
+      console.error('Error al pausar simulación:', err)
+    }
     setAppState('PAUSED')
   }
 
   async function resumeSimulation() {
-    await apiService.resumeSimulation()
+    try {
+      await apiService.resumeSimulation()
+    } catch (err) {
+      console.error('Error al reanudar simulación:', err)
+    }
     setAppState('RUNNING')
   }
 
