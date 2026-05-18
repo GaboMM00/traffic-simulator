@@ -55,6 +55,28 @@ public class StopSimulationResponse {
         private long                durationMs;
         private List<VehicleMetrics> vehicles;
         private Summary             summary;
+        /**
+         * Estadísticas de semáforos inteligentes. Null si {@code smartTrafficLights} estaba
+         * desactivado en este runner. La UI muestra una sección extra solo si está presente.
+         */
+        private SmartLightStats     smartLightStats;
+    }
+
+    /**
+     * Contadores agregados de actividad de los semáforos inteligentes en este runner.
+     * Se incluye en {@link RunResult} únicamente cuando smartTrafficLights estaba activo.
+     */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class SmartLightStats {
+        /** Veces que algún semáforo extendió el verde por congestión persistente. */
+        private int totalGreenExtensions;
+        /** Veces que algún semáforo recortó el verde porque la cola se vació. */
+        private int totalGreenReductions;
+        /** Veces que algún semáforo recortó el rojo por congestión crítica. */
+        private int totalRedReductions;
     }
 
     /**

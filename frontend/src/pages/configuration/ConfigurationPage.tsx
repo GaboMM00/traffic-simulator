@@ -25,7 +25,7 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Toast from '../../components/ui/Toast'
 import { useConfigStore } from '../../store/config.store'
 import { useSimulation } from '../../hooks/useSimulation'
-import { maxVehiclesForGrid } from '../../constants/simulation.constants'
+import { maxVehiclesForGrid, HIGH_LOAD_THRESHOLDS } from '../../constants/simulation.constants'
 import type { VehicleMode, ManualVehicle } from '../../types/config.types'
 
 export default function ConfigurationPage() {
@@ -36,6 +36,7 @@ export default function ConfigurationPage() {
   const [pendingOrigin, setPendingOrigin] = useState<{ col: number; row: number } | null>(null)
   const [pendingMode, setPendingMode] = useState<VehicleMode | null>(null)
   const [toast, setToast]             = useState<{ message: string; visible: boolean }>({ message: '', visible: false })
+  const [highLoadOpen, setHighLoadOpen] = useState(false)
 
   const isManual    = config.vehicleMode === 'MANUAL'
   const isAdding    = stage !== 'idle'
@@ -123,6 +124,40 @@ export default function ConfigurationPage() {
     setPendingOrigin(null)
   }
 
+  /**
+   * Calcula el conteo efectivo de vehículos según el modo seleccionado.
+   * MANUAL → tamaño de la lista; AUTO → vehicleCount del slider (acotado al máximo).
+   */
+  function effectiveVehicleCount() {
+    if (isManual) return config.manualVehicles.length
+    return Math.min(config.vehicleCount, maxVehicles)
+  }
+
+  /**
+   * Decide si la configuración actual cuenta como "alta carga" según los umbrales
+   * en {@link HIGH_LOAD_THRESHOLDS}. Se muestra confirmación antes de iniciar.
+   */
+  function isHighLoad() {
+    return (
+      effectiveVehicleCount() > HIGH_LOAD_THRESHOLDS.VEHICLE_COUNT ||
+      config.gridSize        > HIGH_LOAD_THRESHOLDS.GRID_SIZE
+    )
+  }
+
+  /** Si la config es exigente, abrir el diálogo de advertencia; si no, iniciar directo. */
+  function handleStartClick() {
+    if (isHighLoad()) {
+      setHighLoadOpen(true)
+      return
+    }
+    startSimulation()
+  }
+
+  function confirmStartHighLoad() {
+    setHighLoadOpen(false)
+    startSimulation()
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -199,7 +234,7 @@ export default function ConfigurationPage() {
           <div className="flex flex-col items-end gap-1">
             <Button
               size="lg"
-              onClick={startSimulation}
+              onClick={handleStartClick}
               disabled={!canStart || lockOthers}
               aria-label="Iniciar simulación"
             >
@@ -208,6 +243,11 @@ export default function ConfigurationPage() {
             {isManual && !canStart && (
               <span className="text-[11px] text-yellow-500">
                 Agrega al menos 2 vehículos para iniciar
+              </span>
+            )}
+            {isHighLoad() && canStart && !lockOthers && (
+              <span className="text-[11px] text-yellow-500">
+                ⚠️ Alta carga — se pedirá confirmación
               </span>
             )}
           </div>
@@ -224,6 +264,22 @@ export default function ConfigurationPage() {
         variant="danger"
         onConfirm={confirmModeChange}
         onCancel={() => setPendingMode(null)}
+      />
+
+      {/* Diálogo de advertencia antes de iniciar simulación de alta carga */}
+      <ConfirmDialog
+        open={highLoadOpen}
+        title="⚠️ Simulación de alta carga"
+        message={
+          `Grid: ${config.gridSize}×${config.gridSize} — Vehículos: ${effectiveVehicleCount()}. ` +
+          `Esta configuración requiere recursos significativos. ` +
+          `Se recomienda cerrar otras aplicaciones. ¿Deseas continuar?`
+        }
+        confirmLabel="Continuar"
+        cancelLabel="Ajustar configuración"
+        variant="danger"
+        onConfirm={confirmStartHighLoad}
+        onCancel={() => setHighLoadOpen(false)}
       />
 
       {/* Toast informativo (origen fuera de borde, destino = origen, etc.) */}

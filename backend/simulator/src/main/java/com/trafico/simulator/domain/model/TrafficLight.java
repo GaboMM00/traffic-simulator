@@ -34,6 +34,13 @@ public class TrafficLight {
     private volatile boolean extended;
 
     /**
+     * Indica si el semáforo redujo activamente la fase actual por demanda inteligente.
+     * Se activa cuando el algoritmo reduce verde (cola==0) o reduce rojo (cola>8).
+     */
+    @Setter
+    private volatile boolean reduced;
+
+    /**
      * Crea un semáforo para la intersección indicada, iniciando en estado ROJO.
      *
      * @param intersectionId identificador de la intersección

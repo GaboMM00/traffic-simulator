@@ -73,6 +73,15 @@ public class SimulationState {
      */
     private final AtomicInteger routesCalculated = new AtomicInteger(0);
 
+    /** Total de extensiones de verde aplicadas por los semáforos inteligentes durante la simulación. */
+    private final AtomicInteger totalGreenExtensions = new AtomicInteger(0);
+
+    /** Total de reducciones de verde aplicadas (cuando la cola se vació antes de terminar el verde). */
+    private final AtomicInteger totalGreenReductions = new AtomicInteger(0);
+
+    /** Total de reducciones de rojo aplicadas (cuando la cola en rojo superó el umbral crítico). */
+    private final AtomicInteger totalRedReductions = new AtomicInteger(0);
+
     /**
      * Reinicia el estado para una nueva simulación.
      * Se invoca antes de start() para limpiar el estado de la simulación anterior.
@@ -92,5 +101,8 @@ public class SimulationState {
         vehicles.clear();
         noRouteVehicleCount.set(0);
         routesCalculated.set(0);
+        totalGreenExtensions.set(0);
+        totalGreenReductions.set(0);
+        totalRedReductions.set(0);
     }
 }

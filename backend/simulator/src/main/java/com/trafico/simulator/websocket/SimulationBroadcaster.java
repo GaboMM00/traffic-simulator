@@ -54,10 +54,26 @@ public class SimulationBroadcaster {
     /** Ya no se usa activamente (métricas embebidas en world-state), pero mantenido para tests. */
     public static final String TOPIC_METRICS         = "/topic/metrics";
 
+    /**
+     * Umbrales para el broadcast adaptativo. Con grids extremos (hasta 2000 vehículos)
+     * el payload del WorldState puede llegar a ~400KB cada 100ms (~4MB/s), suficiente
+     * para saturar la red y el parser JSON del frontend. Saltamos ciclos según carga:
+     *   - ≤500 vehículos: emitir cada tick (~100ms)
+     *   - 501-1000 vehículos: 1 de cada 2 (~200ms)
+     *   - >1000 vehículos: 1 de cada 3 (~300ms)
+     * Mantenemos la frecuencia base de 100ms para preservar fluidez en cargas pequeñas.
+     */
+    private static final int  THRESHOLD_MEDIUM_LOAD = 500;
+    private static final int  THRESHOLD_HIGH_LOAD   = 1000;
+    private static final long BROADCAST_COUNTER_RESET = Long.MAX_VALUE - 1;
+
     private final SimpMessagingTemplate messagingTemplate;
     private final Simulator             simulator;
     private final MetricsCollector      metricsCollector;
     private final EventBus              eventBus;
+
+    /** Contador de ticks del scheduler para implementar el throttling adaptativo por carga. */
+    private long broadcastTickCounter = 0L;
 
     @PostConstruct
     public void init() {
@@ -65,9 +81,15 @@ public class SimulationBroadcaster {
         log.info("SimulationBroadcaster suscrito al EventBus compartido");
     }
 
-    /** Transmite el world-state de ambos runners a sus respectivos canales. */
+    /**
+     * Transmite el world-state de ambos runners a sus respectivos canales.
+     * El intervalo base es 100ms pero el throttling adaptativo en {@link #shouldBroadcastThisTick}
+     * puede saltar ciclos según la carga de vehículos para evitar saturar la red.
+     */
     @Scheduled(fixedRateString = "${websocket.broadcast-interval-ms:100}")
     public void broadcastWorldState() {
+        broadcastTickCounter++;
+        if (broadcastTickCounter >= BROADCAST_COUNTER_RESET) broadcastTickCounter = 0L;
         broadcastRunner(simulator.getSeqRunner(), TOPIC_WORLD_STATE_SEQ);
         broadcastRunner(simulator.getParRunner(), TOPIC_WORLD_STATE_PAR);
     }
@@ -76,7 +98,23 @@ public class SimulationBroadcaster {
         if (runner == null) return;
         SimulationState state = runner.getState();
         if (!state.isRunning() || state.isPaused()) return;
+        if (!shouldBroadcastThisTick(state)) return;
         messagingTemplate.convertAndSend(topic, buildWorldState(state));
+    }
+
+    /**
+     * Decide si emitir en este tick según la cantidad de vehículos activos en el runner.
+     * Cargas grandes saltan ticks proporcionalmente para evitar payloads excesivos.
+     *
+     * @param state estado del runner consultado
+     * @return true si este tick debe emitir; false si se debe saltar
+     */
+    private boolean shouldBroadcastThisTick(SimulationState state) {
+        int vehicleCount = state.getVehicles().size();
+        int skip = 1;
+        if      (vehicleCount > THRESHOLD_HIGH_LOAD)   skip = 3;
+        else if (vehicleCount > THRESHOLD_MEDIUM_LOAD) skip = 2;
+        return broadcastTickCounter % skip == 0;
     }
 
     /** Reenvía un evento del EventBus al canal /topic/events. */
@@ -153,6 +191,7 @@ public class SimulationBroadcaster {
                 .remainingMs(light.getRemainingMs())
                 .queueSize(light.getQueueSize().get())
                 .isExtended(light.isExtended())
+                .isReduced(light.isReduced())
                 .build();
     }
 

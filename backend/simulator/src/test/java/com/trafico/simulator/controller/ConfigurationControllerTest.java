@@ -16,20 +16,33 @@ class ConfigurationControllerTest {
     private final ConfigurationController controller = new ConfigurationController();
 
     @Test
-    @DisplayName("maxVehicles aplica fórmula min(200, gridSize*gridSize*0.4)")
+    @DisplayName("maxVehicles aplica fórmula min(2000, gridSize*gridSize*0.2)")
     void maxVehiclesFormula() {
         ResponseEntity<Map<String, Integer>> resp = controller.maxVehicles(8);
-        // 8*8*0.4 = 25.6 → 25
-        assertEquals(25, resp.getBody().get("maxVehicles"));
+        // 8*8*0.2 = 12.8 → 12
+        assertEquals(12, resp.getBody().get("maxVehicles"));
         assertEquals(8,  resp.getBody().get("gridSize"));
     }
 
     @Test
-    @DisplayName("maxVehicles capa el resultado a 200 para grids muy grandes")
-    void maxVehiclesCappedAt200() {
-        // 25*25*0.4 = 250 → cap a 200
-        ResponseEntity<Map<String, Integer>> resp = controller.maxVehicles(25);
-        assertEquals(200, resp.getBody().get("maxVehicles"));
+    @DisplayName("maxVehicles capa el resultado a 2000 para grids extremos (≥100)")
+    void maxVehiclesCappedAt2000() {
+        // 100*100*0.2 = 2000 (en el límite)
+        ResponseEntity<Map<String, Integer>> resp = controller.maxVehicles(100);
+        assertEquals(2000, resp.getBody().get("maxVehicles"));
+
+        // 150*150*0.2 = 4500 → cap a 2000
+        ResponseEntity<Map<String, Integer>> resp2 = controller.maxVehicles(150);
+        assertEquals(2000, resp2.getBody().get("maxVehicles"));
+    }
+
+    @Test
+    @DisplayName("maxVehicles para grids medianos respeta la nueva densidad 0.2")
+    void maxVehiclesMediumGrid() {
+        // 50*50*0.2 = 500
+        assertEquals(500,  controller.maxVehicles(50).getBody().get("maxVehicles"));
+        // 80*80*0.2 = 1280
+        assertEquals(1280, controller.maxVehicles(80).getBody().get("maxVehicles"));
     }
 
     @Test

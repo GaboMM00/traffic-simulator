@@ -24,6 +24,13 @@ public enum SimulationEventType {
     /** Un semáforo inteligente extendió su fase verde por congestión. */
     TRAFFIC_LIGHT_EXTENDED,
 
+    /**
+     * Un semáforo inteligente redujo su fase actual por demanda:
+     *   - Verde reducido si la cola se vació antes de terminar el verde
+     *   - Rojo reducido si la cola superó el umbral crítico (8 vehículos)
+     */
+    TRAFFIC_LIGHT_REDUCED,
+
     /** El primer vehículo empieza a calcular su ruta (inicio de la fase de cálculo). */
     ROUTE_CALCULATION_STARTED,
 

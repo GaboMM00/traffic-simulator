@@ -67,8 +67,11 @@ public class Simulator {
      * @return ID de la simulación creada
      */
     public String start(SimulationParams params) {
-        log.info("Iniciando simulación dual: gridSize={}, vehicleCount={}",
-                params.getGridSize(), params.getVehicleCount());
+        boolean manualMode = params.getManualPairs() != null && !params.getManualPairs().isEmpty();
+        log.info("Iniciando simulación dual: gridSize={}, vehicleCount={}, modo={}",
+                params.getGridSize(),
+                manualMode ? params.getManualPairs().size() : params.getVehicleCount(),
+                manualMode ? "MANUAL" : "AUTOMÁTICO");
 
         stopRunners();
 
@@ -76,7 +79,16 @@ public class Simulator {
 
         // Ciudad plantilla para generar pares y hacer el benchmark
         City templateCity = City.build(params.getGridSize());
-        List<Coordinate[]> pairs = generatePairs(params, templateCity);
+
+        // Si el usuario configuró vehículos manualmente, usamos esos pares; si no, generamos aleatorios
+        List<Coordinate[]> pairs = manualMode
+                ? params.getManualPairs()
+                : generatePairs(params, templateCity);
+
+        // En modo manual el vehicleCount efectivo se deriva de la lista de pares
+        SimulationParams effectiveParams = manualMode
+                ? params.toBuilder().vehicleCount(pairs.size()).build()
+                : params;
 
         // Benchmark de rutas (siempre ambos modos; nanoTime + warm-up + mediana)
         long[] benchTimes = medirTiemposRuta(templateCity, pairs);
@@ -101,8 +113,8 @@ public class Simulator {
         parRunner.getState().setSequentialRouteTimeMs(seqBenchMs);
         parRunner.getState().setParallelRouteTimeMs(parBenchMs);
 
-        seqRunner.start(simulationId, params, seqCity, seqVehicles);
-        parRunner.start(simulationId, params, parCity, parVehicles);
+        seqRunner.start(simulationId, effectiveParams, seqCity, seqVehicles);
+        parRunner.start(simulationId, effectiveParams, parCity, parVehicles);
 
         log.info("Simulación {} arrancada en modo dual (SEQ + PAR)", simulationId);
         return simulationId;

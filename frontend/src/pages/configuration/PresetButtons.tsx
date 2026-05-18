@@ -8,15 +8,18 @@ export default function PresetButtons() {
   const { setConfig } = useConfigStore()
 
   return (
-    <div className="flex gap-2">
+    <div className="flex flex-wrap gap-2">
       <Button variant="secondary" size="sm" onClick={() => setConfig(PRESETS.DEMO)}>
         Demo rápida
       </Button>
       <Button variant="secondary" size="sm" onClick={() => setConfig(PRESETS.STANDARD)}>
         Estándar
       </Button>
-      <Button variant="secondary" size="sm" onClick={() => setConfig(PRESETS.STRESS)}>
-        Estrés máximo
+      <Button variant="secondary" size="sm" onClick={() => setConfig(PRESETS.STRESS_HIGH)}>
+        Estrés alto
+      </Button>
+      <Button variant="secondary" size="sm" onClick={() => setConfig(PRESETS.STRESS_EXTREME)}>
+        🔥 Estrés extremo
       </Button>
     </div>
   )

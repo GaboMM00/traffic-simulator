@@ -105,6 +105,7 @@ public class SimulationRunner {
                 .redDurationMs(params.getRedDurationMs())
                 .simulationSpeed(params.getSimulationSpeed())
                 .smartTrafficLights(params.isSmartTrafficLights())
+                .manualPairs(params.getManualPairs())
                 .build();
 
         state.setSimulationId(simId + "-" + mode.name());
@@ -170,9 +171,13 @@ public class SimulationRunner {
         String prefix = mode.name().toLowerCase();
         timerExecutor = Executors.newSingleThreadScheduledExecutor(
                 r -> new Thread(r, prefix + "-timer"));
+        // El timer NO avanza durante la pausa, para que simulationTimeMs refleje
+        // solo el tiempo real de simulación (sin incluir el tiempo pausado).
         timerExecutor.scheduleAtFixedRate(() -> {
-            state.getSimulationTimeMs().addAndGet(TIMER_INTERVAL_MS);
-            state.getTick().incrementAndGet();
+            if (!state.isPaused()) {
+                state.getSimulationTimeMs().addAndGet(TIMER_INTERVAL_MS);
+                state.getTick().incrementAndGet();
+            }
         }, 0, TIMER_INTERVAL_MS, TimeUnit.MILLISECONDS);
     }
 
@@ -181,7 +186,8 @@ public class SimulationRunner {
         for (TrafficLight light : city.getAllTrafficLights()) {
             ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(
                     r -> new Thread(r, prefix + "-light-" + light.getIntersectionId()));
-            TrafficLightThread thread = new TrafficLightThread(light, params, privateEventBus, scheduler);
+            // Se pasa el estado de simulación para que el semáforo respete la pausa.
+            TrafficLightThread thread = new TrafficLightThread(light, params, privateEventBus, scheduler, state);
             thread.start();
             lightThreads.add(thread);
         }
@@ -201,8 +207,15 @@ public class SimulationRunner {
         Semaphore calcSemaphore = new Semaphore(permits);
 
         String prefix = mode.name().toLowerCase();
-        vehicleExecutor = Executors.newFixedThreadPool(vehicles.size(),
-                r -> new Thread(r, prefix + "-vehicle-" + r.hashCode()));
+        // Virtual Threads (Java 21+): cada VehicleThread vive en un virtual thread.
+        // Razón: con grids extremos podemos tener hasta 2000 vehículos. Un platform
+        // thread por vehículo consumiría ~1MB de stack cada uno (~2GB para 2000) y
+        // saturaría el planificador del SO. Los virtual threads cuestan ~kilobyte
+        // de heap y se multiplexan sobre un pequeño grupo de carrier threads, así
+        // que escalan a miles sin penalización. La semántica de Thread.sleep,
+        // synchronized y ReentrantLock se mantiene idéntica.
+        vehicleExecutor = Executors.newThreadPerTaskExecutor(
+                Thread.ofVirtual().name(prefix + "-vehicle-", 0).factory());
 
         for (Vehicle vehicle : vehicles) {
             VehicleThread vt = new VehicleThread(

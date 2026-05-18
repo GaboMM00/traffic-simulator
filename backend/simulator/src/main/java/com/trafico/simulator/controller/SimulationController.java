@@ -5,6 +5,7 @@ import com.trafico.simulator.controller.dto.StartSimulationResponse;
 import com.trafico.simulator.controller.dto.StatusResponse;
 import com.trafico.simulator.controller.dto.StopSimulationResponse;
 import com.trafico.simulator.domain.enums.ExecutionMode;
+import com.trafico.simulator.domain.valueobject.Coordinate;
 import com.trafico.simulator.domain.valueobject.SimulationParams;
 import com.trafico.simulator.metrics.MetricsCollector;
 import com.trafico.simulator.metrics.SimulationMetrics;
@@ -18,7 +19,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Controller REST que expone los endpoints de control de la simulación dual (SEQ + PAR).
@@ -45,15 +48,21 @@ public class SimulationController {
         String simId = simulator.start(params);
 
         int trafficLightCount = 0;
+        int effectiveVehicleCount = params.getVehicleCount();
         if (simulator.getParRunner() != null && simulator.getParRunner().getState().getCity() != null) {
-            trafficLightCount = simulator.getParRunner().getState().getCity().getAllTrafficLights().size();
+            SimulationState parState = simulator.getParRunner().getState();
+            trafficLightCount = parState.getCity().getAllTrafficLights().size();
+            // En modo manual el conteo se deriva de los vehículos efectivamente creados.
+            // Si el state aún no tiene vehículos (p.ej. en tests con mocks), conservamos el del request.
+            int realCount = parState.getVehicles().size();
+            if (realCount > 0) effectiveVehicleCount = realCount;
         }
 
         StartSimulationResponse response = StartSimulationResponse.builder()
                 .simulationId(simId)
                 .status("LOADING")
                 .gridSize(params.getGridSize())
-                .vehicleCount(params.getVehicleCount())
+                .vehicleCount(effectiveVehicleCount)
                 .trafficLightCount(trafficLightCount)
                 .estimatedLoadTimeMs(ESTIMATED_LOAD_MS)
                 .build();
@@ -61,15 +70,15 @@ public class SimulationController {
     }
 
     @PostMapping("/pause")
-    public ResponseEntity<Void> pause() {
+    public ResponseEntity<Map<String, String>> pause() {
         simulator.pause();
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(Map.of("status", "paused"));
     }
 
     @PostMapping("/resume")
-    public ResponseEntity<Void> resume() {
+    public ResponseEntity<Map<String, String>> resume() {
         simulator.resume();
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(Map.of("status", "running"));
     }
 
     /**
@@ -158,6 +167,9 @@ public class SimulationController {
         SimulationParams defaults = SimulationParams.defaults();
         StartSimulationRequest.TrafficLightConfig tl = req.getTrafficLight();
 
+        List<Coordinate[]> manualPairs = mapManualPairs(req.getManualVehicles(),
+                req.getGridSize() != null ? req.getGridSize() : defaults.getGridSize());
+
         return SimulationParams.builder()
                 .gridSize(req.getGridSize() != null ? req.getGridSize() : defaults.getGridSize())
                 .vehicleCount(req.getVehicleCount() != null ? req.getVehicleCount() : defaults.getVehicleCount())
@@ -173,7 +185,54 @@ public class SimulationController {
                         ? req.getSimulationSpeed() : defaults.getSimulationSpeed())
                 .smartTrafficLights(req.getSmartTrafficLights() != null
                         ? req.getSmartTrafficLights() : defaults.isSmartTrafficLights())
+                .manualPairs(manualPairs)
                 .build();
+    }
+
+    /**
+     * Convierte la lista de vehículos manuales del request a la lista de pares Coordinate[2]
+     * que consume {@link SimulationParams#getManualPairs()}. Aplica validaciones básicas:
+     * <ul>
+     *   <li>Solo orígenes en el borde (descarta los que no lo son).</li>
+     *   <li>Origen distinto a destino (descarta pares iguales).</li>
+     *   <li>Coordenadas dentro del grid (descarta fuera de rango).</li>
+     * </ul>
+     * Si la lista resultante es vacía, retorna null para activar el modo automático.
+     *
+     * @param manualVehicles lista del request (puede ser null si modo automático)
+     * @param gridSize       tamaño del grid para validar coordenadas
+     * @return lista de pares válidos, o null si la lista original era vacía/null
+     */
+    private List<Coordinate[]> mapManualPairs(
+            List<StartSimulationRequest.ManualVehiclePair> manualVehicles, int gridSize) {
+        if (manualVehicles == null || manualVehicles.isEmpty()) return null;
+
+        List<Coordinate[]> pairs = new ArrayList<>(manualVehicles.size());
+        for (StartSimulationRequest.ManualVehiclePair mv : manualVehicles) {
+            if (mv == null
+                    || mv.getOriginCol() == null || mv.getOriginRow() == null
+                    || mv.getDestCol() == null   || mv.getDestRow() == null) {
+                log.warn("Vehículo manual con coordenadas incompletas, ignorado: {}", mv);
+                continue;
+            }
+            Coordinate origin = new Coordinate(mv.getOriginCol(), mv.getOriginRow());
+            Coordinate dest   = new Coordinate(mv.getDestCol(),   mv.getDestRow());
+            if (!origin.isValid(gridSize) || !dest.isValid(gridSize)) {
+                log.warn("Vehículo manual fuera del grid {}x{}, ignorado: {} → {}",
+                        gridSize, gridSize, origin, dest);
+                continue;
+            }
+            if (!origin.isBorder(gridSize)) {
+                log.warn("Vehículo manual con origen fuera del borde, ignorado: {} → {}", origin, dest);
+                continue;
+            }
+            if (origin.equals(dest)) {
+                log.warn("Vehículo manual con origen=destino, ignorado: {}", origin);
+                continue;
+            }
+            pairs.add(new Coordinate[]{origin, dest});
+        }
+        return pairs.isEmpty() ? null : pairs;
     }
 
     private StopSimulationResponse.RunResult buildRunResult(SimulationMetrics metrics,
@@ -203,10 +262,20 @@ public class SimulationController {
                 .mostCongestedIntersectionWaits(metrics.getMostCongestedIntersectionWaits())
                 .build();
 
+        StopSimulationResponse.SmartLightStats smartStats = null;
+        if (state.getParams() != null && state.getParams().isSmartTrafficLights()) {
+            smartStats = StopSimulationResponse.SmartLightStats.builder()
+                    .totalGreenExtensions(state.getTotalGreenExtensions().get())
+                    .totalGreenReductions(state.getTotalGreenReductions().get())
+                    .totalRedReductions(state.getTotalRedReductions().get())
+                    .build();
+        }
+
         return StopSimulationResponse.RunResult.builder()
                 .durationMs(durationMs)
                 .vehicles(vehicleMetrics)
                 .summary(summary)
+                .smartLightStats(smartStats)
                 .build();
     }
 }

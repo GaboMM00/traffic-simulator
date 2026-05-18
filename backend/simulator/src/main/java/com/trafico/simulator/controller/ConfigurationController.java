@@ -19,16 +19,25 @@ import java.util.Map;
 @RequestMapping("/api/configuration")
 public class ConfigurationController {
 
+    /** Tope absoluto de vehículos soportados por la simulación. */
+    private static final int ABSOLUTE_MAX_VEHICLES = 2000;
+    /** Densidad máxima permitida: porcentaje de intersecciones del grid ocupables por vehículos. */
+    private static final double VEHICLES_PER_INTERSECTION = 0.2;
+
     /**
      * Retorna el número máximo de vehículos permitidos para el grid size indicado.
-     * Fórmula: maxVehicles = Math.min(200, gridSize * gridSize * 0.4)
+     * Fórmula: maxVehicles = min(ABSOLUTE_MAX_VEHICLES, gridSize² × VEHICLES_PER_INTERSECTION).
+     * Ejemplos con la fórmula actual:
+     *   8x8   →   12     | 20x20 →   80    | 50x50 →   500
+     *   12x12 →   28     | 30x30 →  180    | 80x80 →  1280
+     *   16x16 →   51     | 40x40 →  320    | 100x100 → 2000
      *
-     * @param gridSize tamaño del grid cuadrado (8 a 20)
+     * @param gridSize tamaño del grid cuadrado (8 a 100)
      * @return máximo de vehículos calculado
      */
     @GetMapping("/max-vehicles")
     public ResponseEntity<Map<String, Integer>> maxVehicles(@RequestParam int gridSize) {
-        int max = Math.min(200, (int) (gridSize * gridSize * 0.4));
+        int max = Math.min(ABSOLUTE_MAX_VEHICLES, (int) (gridSize * gridSize * VEHICLES_PER_INTERSECTION));
         return ResponseEntity.ok(Map.of("gridSize", gridSize, "maxVehicles", max));
     }
 

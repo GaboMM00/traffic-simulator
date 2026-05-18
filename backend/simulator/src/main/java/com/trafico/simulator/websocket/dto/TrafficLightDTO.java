@@ -35,4 +35,7 @@ public class TrafficLightDTO {
 
     /** Indica si el semáforo está en modo extendido (semáforo inteligente). */
     private boolean isExtended;
+
+    /** Indica si el semáforo está en modo reducido (verde acortado o rojo acortado por demanda). */
+    private boolean isReduced;
 }
