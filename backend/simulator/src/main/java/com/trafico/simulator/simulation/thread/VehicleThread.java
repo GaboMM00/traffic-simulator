@@ -225,12 +225,18 @@ public class VehicleThread implements Runnable {
         int total      = simulationState.getVehicles().size();
 
         if (calculados >= total) {
-            long seqMs  = simulationState.getSequentialRouteTimeMs();
-            long parMs  = simulationState.getParallelRouteTimeMs();
-            double speedup = parMs > 0 ? (double) seqMs / parMs : 1.0;
+            long seqMs = simulationState.getSequentialRouteTimeMs();
+            long parMs = simulationState.getParallelRouteTimeMs();
+            long seqNs = simulationState.getSequentialRouteTimeNs();
+            long parNs = simulationState.getParallelRouteTimeNs();
+            // Speedup más preciso usando nanos cuando estén disponibles
+            double speedup;
+            if (parNs > 0)       speedup = (double) seqNs / parNs;
+            else if (parMs > 0)  speedup = (double) seqMs / parMs;
+            else                 speedup = 1.0;
 
-            log.info("Todos los vehículos calcularon su ruta — seq={}ms, par={}ms, speedup={:.2f}",
-                    seqMs, parMs, speedup);
+            log.info("Todos los vehículos calcularon su ruta — seq={}ms ({}µs), par={}ms ({}µs), speedup={:.2f}",
+                    seqMs, seqNs / 1_000, parMs, parNs / 1_000, speedup);
 
             eventBus.publish(SimulationEvent.builder()
                     .type(SimulationEventType.ROUTE_CALCULATION_FINISHED)
@@ -238,6 +244,8 @@ public class VehicleThread implements Runnable {
                     .payload(Map.of(
                             "sequentialMs", seqMs,
                             "parallelMs",   parMs,
+                            "sequentialNs", seqNs,
+                            "parallelNs",   parNs,
                             "speedup",      speedup
                     ))
                     .build());
@@ -273,7 +281,10 @@ public class VehicleThread implements Runnable {
                     .type(SimulationEventType.HIGH_CONGESTION)
                     .timestamp(simulationState.getSimulationTimeMs().get())
                     .payload(Map.of("intersectionId", light.getIntersectionId(),
-                                    "queueSize",       light.getQueueSize().get()))
+                                    "queueSize",       light.getQueueSize().get(),
+                                    "vehicleId",       vehicle.getId(),
+                                    "col",             vehicle.getCurrentPosition().getCol(),
+                                    "row",             vehicle.getCurrentPosition().getRow()))
                     .build());
         }
 
@@ -294,7 +305,13 @@ public class VehicleThread implements Runnable {
             eventBus.publish(SimulationEvent.builder()
                     .type(SimulationEventType.VEHICLE_WAITING)
                     .timestamp(simulationState.getSimulationTimeMs().get())
-                    .payload(Map.of("vehicleId", vehicle.getId(), "waitMs", waitedMs))
+                    .payload(Map.of(
+                            "vehicleId",      vehicle.getId(),
+                            "waitMs",         waitedMs,
+                            "col",            vehicle.getCurrentPosition().getCol(),
+                            "row",            vehicle.getCurrentPosition().getRow(),
+                            "intersectionId", light.getIntersectionId()
+                    ))
                     .build());
         }
 
@@ -341,9 +358,13 @@ public class VehicleThread implements Runnable {
                     eventBus.publish(SimulationEvent.builder()
                             .type(SimulationEventType.VEHICLE_WAITING)
                             .timestamp(simulationState.getSimulationTimeMs().get())
-                            .payload(Map.of("vehicleId", vehicle.getId(),
-                                            "waitMs",    waitedMs,
-                                            "blocking",  nextId))
+                            .payload(Map.of(
+                                    "vehicleId", vehicle.getId(),
+                                    "waitMs",    waitedMs,
+                                    "blocking",  nextId,
+                                    "col",       vehicle.getCurrentPosition().getCol(),
+                                    "row",       vehicle.getCurrentPosition().getRow()
+                            ))
                             .build());
                 }
             }

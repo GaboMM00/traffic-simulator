@@ -116,7 +116,18 @@ public class MetricsCollector {
 
         long seqMs = state.getSequentialRouteTimeMs();
         long parMs = state.getParallelRouteTimeMs();
-        Double speedup = (parMs > 0) ? (double) seqMs / parMs : null;
+        long seqNs = state.getSequentialRouteTimeNs();
+        long parNs = state.getParallelRouteTimeNs();
+        // El speedup usa los nanosegundos cuando estén disponibles (precisión sub-ms);
+        // fallback a los milisegundos si los Ns son 0 (estados legacy o tests).
+        Double speedup;
+        if (parNs > 0) {
+            speedup = (double) seqNs / parNs;
+        } else if (parMs > 0) {
+            speedup = (double) seqMs / parMs;
+        } else {
+            speedup = null;
+        }
 
         List<VehicleMetrics> detail = includeVehicleDetail ? collectVehicleMetrics(state) : null;
 
@@ -131,6 +142,8 @@ public class MetricsCollector {
                 .mostCongestedIntersectionWaits(congestedWaits)
                 .sequentialRouteTimeMs(seqMs)
                 .parallelRouteTimeMs(parMs)
+                .sequentialRouteTimeNs(seqNs)
+                .parallelRouteTimeNs(parNs)
                 .speedup(speedup)
                 .vehicleMetrics(detail)
                 .build();

@@ -24,6 +24,35 @@ export function formatSpeedup(seqMs: number, parMs: number): string {
   return `${(seqMs / parMs).toFixed(2)}x`
 }
 
+/**
+ * Formatea un tiempo de cálculo de rutas con la unidad apropiada según magnitud.
+ * Si los milisegundos son ≥1 → "Xms"; si son 0 pero hay nanosegundos → "X.X µs";
+ * si todo es 0 → "0ms" (caso degenerado).
+ *
+ * @param ms milisegundos reportados por el backend (puede ser 0 en grids pequeños)
+ * @param ns nanosegundos (opcional). Si se pasa y ms==0 se reporta en µs.
+ */
+export function formatRouteTime(ms: number, ns?: number): string {
+  if (ms >= 1) return `${ms}ms`
+  if (ns && ns > 0) {
+    const us = ns / 1_000
+    return us >= 100 ? `${us.toFixed(0)}µs` : `${us.toFixed(1)}µs`
+  }
+  return `${ms}ms`
+}
+
+/**
+ * Calcula el speedup priorizando nanosegundos cuando estén disponibles (precisión sub-ms).
+ * Si los Ns son 0 o ausentes, cae a milisegundos. Si ambos son 0, retorna "N/A".
+ */
+export function formatRouteSpeedup(
+  seqMs: number, parMs: number, seqNs?: number, parNs?: number,
+): string {
+  if (seqNs && parNs && parNs > 0) return `${(seqNs / parNs).toFixed(2)}x`
+  if (parMs > 0) return `${(seqMs / parMs).toFixed(2)}x`
+  return 'N/A'
+}
+
 /** Formatea el ID de vehículo para mostrar: "V-007" → "V007" si necesario */
 export function formatVehicleId(id: string): string {
   return id

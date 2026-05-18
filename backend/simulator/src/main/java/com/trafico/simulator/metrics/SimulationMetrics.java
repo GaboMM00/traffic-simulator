@@ -48,6 +48,12 @@ public class SimulationMetrics {
     /** Tiempo que tomó calcular rutas en paralelo (para comparación). */
     private long parallelRouteTimeMs;
 
+    /** Tiempo en nanosegundos del benchmark secuencial; permite reportar µs en grids pequeños. */
+    private long sequentialRouteTimeNs;
+
+    /** Tiempo en nanosegundos del benchmark paralelo; permite reportar µs en grids pequeños. */
+    private long parallelRouteTimeNs;
+
     /**
      * Speedup = T_seq / T_par. Null si T_par == 0.
      * Valor académico central de la comparación paralelo vs secuencial.

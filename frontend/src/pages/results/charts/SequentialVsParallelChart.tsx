@@ -3,7 +3,7 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import Card from '../../../components/ui/Card'
 import { COLORS } from '../../../constants/colors'
-import { formatSpeedup, formatSeconds } from '../../../utils/format.utils'
+import { formatSpeedup, formatSeconds, formatRouteSpeedup } from '../../../utils/format.utils'
 import type { RunResult, RouteCalculation } from '../../../types/simulation.types'
 
 interface SequentialVsParallelChartProps {
@@ -18,10 +18,20 @@ export default function SequentialVsParallelChart({
   routeCalculation,
 }: SequentialVsParallelChartProps) {
   const simSpeedup    = formatSpeedup(sequential.durationMs, parallel.durationMs)
-  const routeSpeedup  = formatSpeedup(routeCalculation.sequentialTimeMs, routeCalculation.parallelTimeMs)
+  // Speedup de rutas usa la unidad más precisa disponible (Ns si vienen del backend)
+  const routeSpeedup  = formatRouteSpeedup(
+    routeCalculation.sequentialTimeMs,
+    routeCalculation.parallelTimeMs,
+    routeCalculation.sequentialTimeNs,
+    routeCalculation.parallelTimeNs,
+  )
   const parFaster     = parallel.durationMs < sequential.durationMs
   const tooFast       = sequential.durationMs === 0 && parallel.durationMs === 0
-  const routeTooFast  = routeCalculation.sequentialTimeMs === 0 && routeCalculation.parallelTimeMs === 0
+  // Solo es "demasiado rápido para medir" si NI siquiera con nanos hay señal
+  const routeTooFast  = routeCalculation.sequentialTimeMs === 0
+                     && routeCalculation.parallelTimeMs   === 0
+                     && (routeCalculation.sequentialTimeNs ?? 0) === 0
+                     && (routeCalculation.parallelTimeNs   ?? 0) === 0
 
   const data = [
     { mode: 'Secuencial', ms: sequential.durationMs },

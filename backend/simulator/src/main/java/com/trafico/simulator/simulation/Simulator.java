@@ -90,10 +90,13 @@ public class Simulator {
                 ? params.toBuilder().vehicleCount(pairs.size()).build()
                 : params;
 
-        // Benchmark de rutas (siempre ambos modos; nanoTime + warm-up + mediana)
+        // Benchmark de rutas (siempre ambos modos; nanoTime + warm-up + mediana).
+        // Devuelve {seqMs, parMs, seqNs, parNs}: los Ns dan precisión sub-ms para grids pequeños.
         long[] benchTimes = medirTiemposRuta(templateCity, pairs);
         long seqBenchMs = benchTimes[0];
         long parBenchMs = benchTimes[1];
+        long seqBenchNs = benchTimes[2];
+        long parBenchNs = benchTimes[3];
 
         // Dos ciudades con topología idéntica (City.build es determinista dado el gridSize)
         City seqCity = City.build(params.getGridSize());
@@ -107,11 +110,15 @@ public class Simulator {
         seqRunner = new SimulationRunner(ExecutionMode.SEQUENTIAL, aStarCalculator, eventBus);
         parRunner = new SimulationRunner(ExecutionMode.PARALLEL,   aStarCalculator, eventBus);
 
-        // Inyectar tiempos de benchmark en ambos estados antes de arrancar
+        // Inyectar tiempos de benchmark en ambos estados antes de arrancar (ms + ns)
         seqRunner.getState().setSequentialRouteTimeMs(seqBenchMs);
         seqRunner.getState().setParallelRouteTimeMs(parBenchMs);
+        seqRunner.getState().setSequentialRouteTimeNs(seqBenchNs);
+        seqRunner.getState().setParallelRouteTimeNs(parBenchNs);
         parRunner.getState().setSequentialRouteTimeMs(seqBenchMs);
         parRunner.getState().setParallelRouteTimeMs(parBenchMs);
+        parRunner.getState().setSequentialRouteTimeNs(seqBenchNs);
+        parRunner.getState().setParallelRouteTimeNs(parBenchNs);
 
         seqRunner.start(simulationId, effectiveParams, seqCity, seqVehicles);
         parRunner.start(simulationId, effectiveParams, parCity, parVehicles);
@@ -212,7 +219,9 @@ public class Simulator {
      *
      * @param city  ciudad usada para el benchmark (puede ser la plantilla)
      * @param pairs pares origen-destino del benchmark
-     * @return long[]{seqMs, parMs} — tiempos extrapolados al total de vehículos
+     * @return long[]{seqMs, parMs, seqNs, parNs} — tiempos extrapolados al total de vehículos.
+     *         Los valores en nanosegundos permiten reportar µs en grids pequeños donde
+     *         el cómputo es sub-milisegundo (que en ms se redondearía a 0).
      */
     private long[] medirTiemposRuta(City city, List<Coordinate[]> pairs) {
         int sampleSize = Math.min(ROUTE_BENCHMARK_SAMPLE, pairs.size());
@@ -249,12 +258,15 @@ public class Simulator {
 
         long seqMs = Math.round(seqMedianNs * factor / 1_000_000.0);
         long parMs = Math.round(parMedianNs * factor / 1_000_000.0);
+        long seqNs = Math.round(seqMedianNs * factor);
+        long parNs = Math.round(parMedianNs * factor);
 
-        double speedup = parMs > 0 ? (double) seqMs / parMs : 1.0;
-        log.info("Benchmark completado — seq={}ms, par={}ms, speedup={} (mediana {} rondas, ×{})",
-                seqMs, parMs, String.format("%.2f", speedup),
+        // Speedup más preciso cuando ambos valores son sub-ms (los ms estarían en 0)
+        double speedup = parNs > 0 ? (double) seqNs / parNs : 1.0;
+        log.info("Benchmark completado — seq={}ms ({}µs), par={}ms ({}µs), speedup={} (mediana {} rondas, ×{})",
+                seqMs, seqNs / 1_000, parMs, parNs / 1_000, String.format("%.2f", speedup),
                 BENCHMARK_MEASURE_ROUNDS, String.format("%.1f", factor));
 
-        return new long[]{seqMs, parMs};
+        return new long[]{seqMs, parMs, seqNs, parNs};
     }
 }

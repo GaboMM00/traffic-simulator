@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion'
 import Card from '../../components/ui/Card'
 import type { SimulationStopResponse } from '../../types/simulation.types'
-import { formatSeconds, formatSpeedup } from '../../utils/format.utils'
+import { formatSeconds, formatRouteTime, formatRouteSpeedup } from '../../utils/format.utils'
 
 interface MetricCardsProps {
   results: SimulationStopResponse
@@ -46,10 +46,18 @@ export default function MetricCards({ results }: MetricCardsProps) {
     {
       icon: '⚡',
       label: 'Speedup cálculo de rutas',
-      seq: `${routeCalculation.sequentialTimeMs}ms`,
-      par: `${routeCalculation.parallelTimeMs}ms`,
-      extra: formatSpeedup(routeCalculation.sequentialTimeMs, routeCalculation.parallelTimeMs),
-      parBetter: routeCalculation.parallelTimeMs < routeCalculation.sequentialTimeMs,
+      // Formato adaptativo: ms si ≥1, sino µs (grids pequeños tienen cómputo sub-ms)
+      seq: formatRouteTime(routeCalculation.sequentialTimeMs, routeCalculation.sequentialTimeNs),
+      par: formatRouteTime(routeCalculation.parallelTimeMs,   routeCalculation.parallelTimeNs),
+      extra: formatRouteSpeedup(
+        routeCalculation.sequentialTimeMs,
+        routeCalculation.parallelTimeMs,
+        routeCalculation.sequentialTimeNs,
+        routeCalculation.parallelTimeNs,
+      ),
+      // El "mejor" se decide con la unidad más precisa disponible (Ns si las hay)
+      parBetter: (routeCalculation.parallelTimeNs ?? routeCalculation.parallelTimeMs)
+               < (routeCalculation.sequentialTimeNs ?? routeCalculation.sequentialTimeMs),
     },
     {
       icon: '🔴',

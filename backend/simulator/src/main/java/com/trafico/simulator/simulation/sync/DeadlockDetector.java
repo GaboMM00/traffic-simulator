@@ -129,6 +129,8 @@ public class DeadlockDetector {
     /**
      * Resuelve el deadlock seleccionando la víctima con mayor tiempo de espera acumulado.
      * La víctima abandona su espera actual, liberando el ciclo.
+     * El payload incluye la posición de la víctima y de los demás miembros del ciclo
+     * para que el feed del frontend pueda mostrar exactamente dónde ocurrió el conflicto.
      */
     private void resolveDeadlock(List<String> cycleVehicles) {
         log.warn("¡Deadlock detectado! Ciclo de {} vehículos: {}", cycleVehicles.size(), cycleVehicles);
@@ -142,6 +144,26 @@ public class DeadlockDetector {
         Map<String, Object> payload = new HashMap<>();
         payload.put("cycleVehicles", cycleVehicles);
         payload.put("victimVehicleId", victim);
+
+        // Posición actual de la víctima (la que abandona el lock para romper el ciclo)
+        Vehicle victimVehicle = simulationState.getVehicles().get(victim);
+        if (victimVehicle != null && victimVehicle.getCurrentPosition() != null) {
+            payload.put("victimCol", victimVehicle.getCurrentPosition().getCol());
+            payload.put("victimRow", victimVehicle.getCurrentPosition().getRow());
+        }
+
+        // Posiciones de cada vehículo del ciclo, indexadas por id
+        Map<String, Map<String, Integer>> cyclePositions = new HashMap<>();
+        for (String vehicleId : cycleVehicles) {
+            Vehicle v = simulationState.getVehicles().get(vehicleId);
+            if (v != null && v.getCurrentPosition() != null) {
+                Map<String, Integer> pos = new HashMap<>();
+                pos.put("col", v.getCurrentPosition().getCol());
+                pos.put("row", v.getCurrentPosition().getRow());
+                cyclePositions.put(vehicleId, pos);
+            }
+        }
+        payload.put("cyclePositions", cyclePositions);
 
         eventBus.publish(SimulationEvent.builder()
                 .type(SimulationEventType.DEADLOCK_DETECTED)

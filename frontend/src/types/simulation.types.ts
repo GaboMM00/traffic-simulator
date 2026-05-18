@@ -36,6 +36,13 @@ export interface SimulationStopResponse {
 export interface RouteCalculation {
   sequentialTimeMs: number
   parallelTimeMs: number
+  /**
+   * Tiempos en nanosegundos. En grids pequeños el cómputo A* es sub-milisegundo
+   * (los *Ms serían 0). Los *Ns permiten formatear el resultado en µs en esos casos.
+   * Pueden ser 0 (o ausentes) en respuestas legacy del backend.
+   */
+  sequentialTimeNs?: number
+  parallelTimeNs?: number
   speedup: number | null
 }
 

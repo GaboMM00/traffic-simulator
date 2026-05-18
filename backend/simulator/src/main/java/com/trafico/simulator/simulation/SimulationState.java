@@ -61,6 +61,18 @@ public class SimulationState {
     @Setter
     private volatile long parallelRouteTimeMs;
 
+    /**
+     * Tiempo en nanosegundos del benchmark secuencial (mayor precisión).
+     * Se usa para reportar µs/ms según magnitud cuando el cómputo es sub-milisegundo
+     * (grids pequeños donde A* sobre 50 nodos cuesta cientos de microsegundos).
+     */
+    @Setter
+    private volatile long sequentialRouteTimeNs;
+
+    /** Tiempo en nanosegundos del benchmark paralelo (mayor precisión). */
+    @Setter
+    private volatile long parallelRouteTimeNs;
+
     /** Todos los vehículos de la simulación, indexados por ID. */
     private final Map<String, Vehicle> vehicles = new ConcurrentHashMap<>();
 
@@ -98,6 +110,8 @@ public class SimulationState {
         simulationTimeMs.set(0);
         sequentialRouteTimeMs = 0;
         parallelRouteTimeMs = 0;
+        sequentialRouteTimeNs = 0;
+        parallelRouteTimeNs = 0;
         vehicles.clear();
         noRouteVehicleCount.set(0);
         routesCalculated.set(0);

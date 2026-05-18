@@ -41,6 +41,9 @@ public class StopSimulationResponse {
     public static class RouteCalculation {
         private long   sequentialTimeMs;
         private long   parallelTimeMs;
+        /** Tiempos en nanosegundos: permiten reportar µs en grids pequeños donde los ms son 0. */
+        private long   sequentialTimeNs;
+        private long   parallelTimeNs;
         private Double speedup;
     }
 

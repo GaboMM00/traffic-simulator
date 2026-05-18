@@ -105,6 +105,8 @@ public class SimulationController {
         StopSimulationResponse.RouteCalculation routeCalc = StopSimulationResponse.RouteCalculation.builder()
                 .sequentialTimeMs(seqMetrics.getSequentialRouteTimeMs())
                 .parallelTimeMs(seqMetrics.getParallelRouteTimeMs())
+                .sequentialTimeNs(seqMetrics.getSequentialRouteTimeNs())
+                .parallelTimeNs(seqMetrics.getParallelRouteTimeNs())
                 .speedup(seqMetrics.getSpeedup())
                 .build();
 
